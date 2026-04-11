@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchMind — Multi-Agent Control System</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c10;
+  --surface: #0d1117;
+  --surface2: #111820;
+  --border: #1e2a38;
+  --border2: #243040;
+  --accent: #00d4ff;
+  --accent2: #0088aa;
+  --green: #00ff9d;
+  --green2: #00b36e;
+  --amber: #ffb800;
+  --red: #ff3d5a;
+  --purple: #a78bfa;
+  --text: #e2eaf4;
+  --text2: #7a9bb5;
+  --text3: #3d5570;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shell { position: relative; z-index: 1; display: grid; grid-template-rows: 56px 1fr; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,12,16,0.95);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.brand {
+  display: flex; align-items: center; gap: 14px;
+}
+
+.brand-mark {
+  width: 30px; height: 30px;
+  border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.brand-mark::before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 1px solid var(--accent);
+  transform: rotate(45deg);
+}
+.brand-mark::after {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--accent);
+  position: absolute;
+}
+
+.brand-name {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+.brand-name span { color: var(--accent); }
+
+.brand-tag {
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-left: 1px solid var(--border2);
+  padding-left: 14px;
+  margin-left: 2px;
+}
+
+.topbar-right { display: flex; align-items: center; gap: 20px; }
+
+.sys-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text3);
+  letter-spacing: 0.08em;
+}
+.sys-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.hitl-control {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+}
+
+.hitl-label-text {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.toggle-wrap { position: relative; width: 40px; height: 20px; cursor: pointer; }
+.toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  transition: all 0.25s;
+}
+.toggle-thumb {
+  position: absolute;
+  width: 14px; height: 14px;
+  top: 3px; left: 3px;
+  background: var(--text3);
+  transition: all 0.25s;
+}
+.toggle-wrap input:checked ~ .toggle-track { border-color: var(--accent); }
+.toggle-wrap input:checked ~ .toggle-thumb { left: 23px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+
+.hitl-state {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  min-width: 22px;
+  transition: color 0.25s;
+}
+.hitl-state.active { color: var(--accent); }
+
+/* MAIN LAYOUT */
+.main { display: grid; grid-template-columns: 380px 1fr; height: calc(100vh - 56px); }
+
+/* LEFT PANEL */
+.left-panel {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section {
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 14px;
+}
+
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.section-line {
+  flex: 1; height: 1px;
+  background: var(--border);
+}
+
+.idea-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 12px 14px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.idea-textarea:focus { border-color: var(--accent2); }
+.idea-textarea::placeholder { color: var(--text3); }
+
+.char-count {
+  text-align: right;
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 6px;
+}
+
+.run-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.run-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: translateX(-100%);
+  transition: transform 0.3s;
+  z-index: 0;
+}
+.run-btn:hover::before { transform: translateX(0); }
+.run-btn:hover { color: var(--bg); }
+.run-btn span { position: relative; z-index: 1; }
+.run-btn:disabled { border-color: var(--text3); color: var(--text3); cursor: not-allowed; }
+.run-btn:disabled::before { display: none; }
+
+/* AGENTS */
+.agents-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.agent-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: border-color 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--border2);
+  transition: background 0.3s;
+}
+
+.agent-row.running { border-color: var(--accent2); }
+.agent-row.running::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.agent-row.done { border-color: var(--green2); }
+.agent-row.done::before { background: var(--green); }
+.agent-row.fail { border-color: var(--red); }
+.agent-row.fail::before { background: var(--red); }
+.agent-row.waiting { opacity: 0.45; }
+
+.agent-index {
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+}
+
+.agent-info { min-width: 0; }
+
+.agent-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.agent-role {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+
+.badge-idle { color: var(--text3); border-color: var(--border2); }
+.badge-running { color: var(--accent); animation: blink 1s infinite; }
+.badge-done { color: var(--green); }
+.badge-fail { color: var(--red); }
+.badge-waiting { color: var(--text3); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* METRICS */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metric-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.metric-val {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.metric-key {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+/* RIGHT PANEL */
+.right-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+/* APPROVAL BANNER */
+.approval-banner {
+  display: none;
+  border-bottom: 1px solid var(--amber);
+  background: rgba(255,184,0,0.04);
+  padding: 16px 24px;
+  animation: slideDown 0.3s ease;
+}
+.approval-banner.visible { display: block; }
+
+@keyframes slideDown { from{transform:translateY(-10px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+.approval-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.approval-title {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.approval-agent { font-size: 10px; color: var(--text3); }
+
+.approval-body {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text2);
+  max-height: 100px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.approval-actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.btn-ok { color: var(--green); border-color: var(--green); }
+.btn-ok:hover { background: rgba(0,255,157,0.1); }
+.btn-reject { color: var(--red); border-color: var(--red); }
+.btn-reject:hover { background: rgba(255,61,90,0.1); }
+.btn-edit { color: var(--text2); border-color: var(--border2); }
+.btn-edit:hover { background: var(--surface2); }
+
+/* LOG */
+.log-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.log-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.log-controls { display: flex; gap: 12px; }
+
+.log-ctrl-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  padding: 0;
+  text-transform: uppercase;
+}
+.log-ctrl-btn:hover { color: var(--accent); }
+
+.log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.log-body::-webkit-scrollbar { width: 4px; }
+.log-body::-webkit-scrollbar-track { background: transparent; }
+.log-body::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.log-line {
+  display: grid;
+  grid-template-columns: 80px 60px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px solid transparent;
+  font-size: 12px;
+  line-height: 1.5;
+  animation: fadeIn 0.2s ease;
+}
+.log-line:hover { background: rgba(255,255,255,0.02); }
+
+@keyframes fadeIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
+
+.log-ts { color: var(--text3); font-size: 11px; }
+.log-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1px 5px;
+  text-align: center;
+}
+.tag-bus { color: var(--accent); background: rgba(0,212,255,0.08); }
+.tag-llm { color: var(--purple); background: rgba(167,139,250,0.08); }
+.tag-sys { color: var(--text3); background: rgba(255,255,255,0.04); }
+.tag-ok { color: var(--green); background: rgba(0,255,157,0.08); }
+.tag-warn { color: var(--amber); background: rgba(255,184,0,0.08); }
+.tag-err { color: var(--red); background: rgba(255,61,90,0.08); }
+
+.log-text { color: var(--text2); }
+.log-text.ok { color: var(--green); }
+.log-text.warn { color: var(--amber); }
+.log-text.err { color: var(--red); }
+.log-text.bus { color: var(--accent); }
+.log-text.llm { color: var(--purple); }
+
+/* MESSAGE FLOW PANEL */
+.msg-panel {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  height: 180px;
+  overflow-y: auto;
+  padding: 14px 24px;
+}
+
+.msg-panel::-webkit-scrollbar { width: 4px; }
+.msg-panel::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.msg-panel-header {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+.msg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.msg-from, .msg-to {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  min-width: 70px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.msg-arrow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.msg-arrow-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border2);
+  position: relative;
+}
+.msg-arrow-line::after {
+  content: '';
+  position: absolute;
+  right: -1px; top: -3px;
+  border: 3px solid transparent;
+  border-left-color: var(--border2);
+}
+
+.msg-type {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 1px 6px;
+  background: var(--bg);
+}
+
+.msg-type.task { color: var(--accent); }
+.msg-type.result { color: var(--green); }
+.msg-type.revision { color: var(--amber); }
+.msg-type.confirm { color: var(--text3); }
+
+.msg-id { font-size: 9px; color: var(--text3); }
+
+/* SCROLLBAR GLOBAL */
+* { scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Launch<span>Mind</span></div>
+      <div class="brand-tag">Multi-Agent Control System</div>
+    </div>
+    <div class="topbar-right">
+      <div class="sys-status">
+        <div class="sys-dot" id="sysDot"></div>
+        <span id="sysLabel">SYSTEM READY</span>
+      </div>
+      <div class="hitl-control">
+        <span class="hitl-label-text">Human-in-the-Loop</span>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="hitlToggle" onchange="onToggleHITL()">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <span class="hitl-state" id="hitlState">OFF</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- LEFT -->
+    <aside class="left-panel">
+
+      <!-- IDEA INPUT -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-label">Startup Idea Input</span>
+          <div class="section-line"></div>
+        </div>
+        <textarea class="idea-textarea" id="ideaInput" rows="4"
+          placeholder="Describe your startup idea..."
+          oninput="updateCharCount()">A mobile platform where university students can buy and sell second-hand textbooks, with AI-powered price suggestions and instant campus-to-campus delivery coordination.</textarea>
+        <div class="char-count"><span id="charCount">176</span> chars</div>
+        <button class="run-btn" id="runBtn" onclick="startPipeline()"><span>Execute Pipeline</span></button>
+      </div>
+
+      <!-- AGENTS -->
+      <div class="panel-section" style="flex:1;overflow-y:auto;">
+        <div class="section-header">
+          <span class="section-label">Agent Pipeline</span>
+          <div class="section-line"></div>
+        </div>
+        <div class="agents-grid" id="agentsGrid">
+          <div class="agent-row waiting" id="agent-ceo">
+            <div class="agent-index">01</div>
+            <div class="agent-info">
+              <div class="agent-name">CEO Agent</div>
+              <div class="agent-role">Orchestrator / Task Decomposition</div>
+            </div>
+            <div class="agent-badge badge-idle" id="badge-ceo">IDLE</div>
+          </div>
+          <div class="agent-row waiting" id="agent-product">
+            <div class="agent-index">02</div>
+            <div class="agent-info">
+              <div class="agent-name">Product Agent</div>
+              <div class="agent-role">Spec / Personas / User Stories</div>
+            </div>
+            <div class="agent-badge badge-idle" id="badge-product">IDLE</div>
+          </div>
+          <div class="agent-row waiting" id="agent-engineer">
+            <div class="agent-index">03</div>
+            <div class="agent-info">
+              <div class="agent-name">Engineer Agent</div>
+              <div class="agent-role">HTML / GitHub Issue / PR</div>
+            </div>
+            <div class="agent-badge badge-idle" id="badge-engineer">IDLE</div>
+          </div>
+          <div class="agent-row waiting" id="agent-marketing">
+            <div class="agent-index">04</div>
+            <div class="agent-info">
+              <div class="agent-name">Marketing Agent</div>
+              <div class="agent-role">Copy / Email / Slack</div>
+            </div>
+            <div class="agent-badge badge-idle" id="badge-marketing">IDLE</div>
+          </div>
+          <div class="agent-row waiting" id="agent-qa">
+            <div class="agent-index">05</div>
+            <div class="agent-info">
+              <div class="agent-name">QA Agent</div>
+              <div class="agent-role">Review / PR Comments / Verdict</div>
+            </div>
+            <div class="agent-badge badge-idle" id="badge-qa">IDLE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-label">Session Metrics</span>
+          <div class="section-line"></div>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-val" id="m-msgs">0</div>
+            <div class="metric-key">Messages</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="m-llm">0</div>
+            <div class="metric-key">LLM Calls</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="m-loops" style="color:var(--amber)">0</div>
+            <div class="metric-key">Revisions</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="m-hitl" style="color:var(--purple)">0</div>
+            <div class="metric-key">HITL Gates</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT -->
+    <main class="right-panel">
+
+      <!-- APPROVAL BANNER -->
+      <div class="approval-banner" id="approvalBanner">
+        <div class="approval-header">
+          <span class="approval-title">HITL Gate — Awaiting Human Decision</span>
+          <span class="approval-agent" id="approvalAgent"></span>
+        </div>
+        <div class="approval-body" id="approvalBody"></div>
+        <div class="approval-actions">
+          <button class="btn btn-ok" onclick="doApprove()">Approve &amp; Continue</button>
+          <button class="btn btn-reject" onclick="doReject()">Reject — Request Revision</button>
+          <button class="btn btn-edit" onclick="doEditApprove()">Edit &amp; Approve</button>
+        </div>
+      </div>
+
+      <!-- LOG HEADER -->
+      <div class="log-header">
+        <span class="log-title">System Log — Real-time Agent Output</span>
+        <div class="log-controls">
+          <button class="log-ctrl-btn" onclick="clearLog()">Clear</button>
+          <button class="log-ctrl-btn" onclick="scrollLogBottom()">Jump to bottom</button>
+        </div>
+      </div>
+
+      <!-- LOG BODY -->
+      <div class="log-body" id="logBody"></div>
+
+      <!-- MESSAGE FLOW -->
+      <div class="msg-panel">
+        <div class="msg-panel-header">Message Bus — Agent Communication Trace</div>
+        <div id="msgFlow"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+let hitlOn = false;
+let msgs = 0, llmCalls = 0, loops = 0, hitlGates = 0;
+let pendingResolve = null;
+let running = false;
+
+function onToggleHITL() {
+  hitlOn = document.getElementById('hitlToggle').checked;
+  const s = document.getElementById('hitlState');
+  s.textContent = hitlOn ? 'ON' : 'OFF';
+  s.className = hitlOn ? 'hitl-state active' : 'hitl-state';
+  log(hitlOn ? 'Human-in-the-Loop ENABLED — pipeline will pause at each agent checkpoint.' : 'Human-in-the-Loop DISABLED — pipeline runs fully autonomous.', 'warn', 'SYS');
+}
+
+function updateCharCount() {
+  const v = document.getElementById('ideaInput').value;
+  document.getElementById('charCount').textContent = v.length;
+}
+
+function setSys(label, active) {
+  document.getElementById('sysLabel').textContent = label;
+  document.getElementById('sysDot').style.background = active ? 'var(--green)' : 'var(--amber)';
+  document.getElementById('sysDot').style.boxShadow = active ? '0 0 8px var(--green)' : '0 0 8px var(--amber)';
+}
+
+function setAgent(id, state, badgeText) {
+  const row = document.getElementById('agent-' + id);
+  const badge = document.getElementById('badge-' + id);
+  row.className = 'agent-row ' + state;
+  badge.className = 'agent-badge badge-' + state;
+  badge.textContent = badgeText.toUpperCase();
+}
+
+function updateMetrics() {
+  document.getElementById('m-msgs').textContent = msgs;
+  document.getElementById('m-llm').textContent = llmCalls;
+  document.getElementById('m-loops').textContent = loops;
+  document.getElementById('m-hitl').textContent = hitlGates;
+}
+
+function ts() {
+  return new Date().toTimeString().slice(0,8);
+}
+
+function log(text, type = 'sys', tag = 'SYS') {
+  const body = document.getElementById('logBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const tagClass = { bus:'tag-bus', llm:'tag-llm', sys:'tag-sys', ok:'tag-ok', warn:'tag-warn', err:'tag-err' }[type] || 'tag-sys';
+  const textClass = { bus:'bus', llm:'llm', ok:'ok', warn:'warn', err:'err' }[type] || '';
+  line.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-tag ${tagClass}">${tag}</span><span class="log-text ${textClass}">${text}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function addMsg(from, to, type, msgId) {
+  msgs++;
+  updateMetrics();
+  const flow = document.getElementById('msgFlow');
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  const typeClass = { task:'task', result:'result', revision_request:'revision', confirmation:'confirm' }[type] || 'task';
+  row.innerHTML = `
+    <div class="msg-from">${from}</div>
+    <div class="msg-arrow">
+      <div class="msg-arrow-line"></div>
+      <span class="msg-type ${typeClass}">${type}</span>
+    </div>
+    <div class="msg-to">${to}</div>
+    <div class="msg-id">${msgId}</div>`;
+  flow.appendChild(row);
+  flow.parentElement.scrollTop = flow.parentElement.scrollHeight;
+  log(`[BUS] ${from} → ${to} | type=${type} | id=${msgId}`, 'bus', 'BUS');
+}
+
+function llmCall(agent, purpose) {
+  llmCalls++;
+  updateMetrics();
+  log(`${agent}: ${purpose}`, 'llm', 'LLM');
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function genId() { return Math.random().toString(36).slice(2,10).toUpperCase(); }
+
+function showApproval(agent, content) {
+  return new Promise(resolve => {
+    pendingResolve = resolve;
+    hitlGates++;
+    updateMetrics();
+    document.getElementById('approvalAgent').textContent = `Agent: ${agent.toUpperCase()}`;
+    document.getElementById('approvalBody').textContent = content;
+    document.getElementById('approvalBanner').className = 'approval-banner visible';
+    log(`HITL gate triggered — waiting for human decision on ${agent} output.`, 'warn', 'HITL');
+  });
+}
+
+function hideApproval() {
+  document.getElementById('approvalBanner').className = 'approval-banner';
+}
+
+function doApprove() {
+  hideApproval();
+  log('Human decision: APPROVED — pipeline resuming.', 'ok', 'HITL');
+  if (pendingResolve) { pendingResolve('approve'); pendingResolve = null; }
+}
+
+function doReject() {
+  hideApproval();
+  loops++;
+  updateMetrics();
+  log('Human decision: REJECTED — dispatching revision_request.', 'warn', 'HITL');
+  if (pendingResolve) { pendingResolve('reject'); pendingResolve = null; }
+}
+
+function doEditApprove() {
+  hideApproval();
+  log('Human decision: EDITED & APPROVED — pipeline resuming with modified output.', 'ok', 'HITL');
+  if (pendingResolve) { pendingResolve('approve'); pendingResolve = null; }
+}
+
+function clearLog() { document.getElementById('logBody').innerHTML = ''; }
+function scrollLogBottom() {
+  const b = document.getElementById('logBody');
+  b.scrollTop = b.scrollHeight;
+}
+
+async function startPipeline() {
+  if (running) return;
+  const idea = document.getElementById('ideaInput').value.trim();
+  if (!idea) { log('No startup idea provided.', 'err', 'ERR'); return; }
+  running = true;
+  document.getElementById('runBtn').disabled = true;
+  msgs = 0; llmCalls = 0; loops = 0; hitlGates = 0; updateMetrics();
+  document.getElementById('msgFlow').innerHTML = '';
+  ['ceo','product','engineer','marketing','qa'].forEach(a => setAgent(a, 'waiting', 'idle'));
+
+  setSys('PIPELINE RUNNING', false);
+  log('Pipeline initiated.', 'ok', 'SYS');
+  log(`Idea: "${idea.slice(0,80)}${idea.length>80?'...':''}"`, 'sys', 'SYS');
+  await wait(300);
+
+  // --- CEO ---
+  setAgent('ceo', 'running', 'running');
+  log('CEO Agent initializing orchestration sequence...', 'sys', 'CEO');
+  await wait(500);
+  llmCall('CEO', 'decompose startup idea → structured task assignments for all sub-agents');
+  await wait(900);
+  log('CEO: task decomposition complete. Dispatching to product, engineer, marketing.', 'sys', 'CEO');
+
+  const t1 = genId();
+  addMsg('ceo', 'product', 'task', t1);
+  await wait(300);
+
+  // --- PRODUCT ---
+  setAgent('product', 'running', 'running');
+  log('Product Agent received task. Generating product specification...', 'sys', 'PROD');
+  await wait(400);
+  llmCall('PRODUCT', 'generate product spec → value_proposition, personas, features[5], user_stories[3]');
+  await wait(1000);
+  log('Product: spec generated — 2 personas defined, 5 features ranked, 3 user stories.', 'sys', 'PROD');
+
+  const r1 = genId();
+  addMsg('product', 'ceo', 'result', r1);
+  await wait(200);
+  llmCall('CEO', 'review product spec output — evaluating completeness and relevance');
+  await wait(700);
+
+  if (hitlOn) {
+    const dec = await showApproval('Product Agent',
+`value_proposition: "A mobile marketplace for university students to buy and sell second-hand textbooks with AI-powered pricing and campus delivery."
+
+personas:
+  - Sarah Chen (Buyer) — overpays for new textbooks each semester
+  - James Okafor (Seller) — has unused books sitting on shelf
+
+features (ranked):
+  1. AI Price Suggestion Engine
+  2. Campus-to-Campus Delivery Coordination
+  3. Secure In-App Payment System
+  4. Advanced Book Search & Filter
+  5. Seller/Buyer Rating System
+
+user_stories: 3 defined`);
+    if (dec === 'reject') {
+      loops++;
+      const rv1 = genId();
+      addMsg('ceo', 'product', 'revision_request', rv1);
+      setAgent('product', 'running', 'running');
+      log('Product Agent processing revision request...', 'warn', 'PROD');
+      await wait(400);
+      llmCall('PRODUCT', 'revise spec — addressing CEO feedback on specificity');
+      await wait(800);
+      log('Product: spec revised and resubmitted.', 'ok', 'PROD');
+      addMsg('product', 'ceo', 'result', genId());
+    }
+  } else {
+    log('CEO review verdict: PASS — spec is specific and complete.', 'ok', 'CEO');
+  }
+
+  const c1 = genId();
+  addMsg('product', 'ceo', 'confirmation', c1);
+  setAgent('product', 'done', 'done');
+  log('Product Agent task complete.', 'ok', 'PROD');
+  await wait(200);
+
+  // --- ENGINEER ---
+  const t2 = genId();
+  addMsg('ceo', 'engineer', 'task', t2);
+  setAgent('engineer', 'running', 'running');
+  log('Engineer Agent received product spec. Starting build sequence...', 'sys', 'ENG');
+  await wait(400);
+  llmCall('ENGINEER', 'generate complete HTML landing page with inline CSS, features section, CTA');
+  await wait(1100);
+  log('Engineer: HTML generated. Creating GitHub issue...', 'sys', 'ENG');
+  await wait(500);
+  log('Engineer: GitHub issue created → https://github.com/zainaliqureshi174/launchmind/issues', 'ok', 'ENG');
+  await wait(300);
+  log('Engineer: branch "agent-landing-page" created from main SHA.', 'sys', 'ENG');
+  await wait(300);
+  log('Engineer: index.html committed (author: EngineerAgent <agent@launchmind.ai>).', 'sys', 'ENG');
+  await wait(300);
+  log('Engineer: pull request opened → https://github.com/zainaliqureshi174/launchmind/pull/2', 'ok', 'ENG');
+
+  if (hitlOn) {
+    const dec = await showApproval('Engineer Agent',
+`GitHub Actions:
+  - Issue created: "Initial landing page" — features & value prop documented
+  - Branch: agent-landing-page (from main HEAD)
+  - Commit: "Add landing page for A mobile platform where university students..."
+             Author: EngineerAgent <agent@launchmind.ai>
+  - PR opened: "Initial landing page"
+               base: main ← head: agent-landing-page
+
+HTML Preview:
+  <!DOCTYPE html>
+  <!-- Generated by EngineerAgent <agent@launchmind.ai> -->
+  <title>BookSwap — Buy & Sell Textbooks</title>
+  Headline: "Stop Overpaying for Textbooks"
+  Subheadline: "AI-powered pricing. Campus delivery. Student-to-student."
+  Features section: 5 items rendered
+  CTA: "Get Started Free" button`);
+    if (dec === 'reject') {
+      loops++;
+      addMsg('ceo', 'engineer', 'revision_request', genId());
+      setAgent('engineer', 'running', 'running');
+      log('Engineer Agent processing revision...', 'warn', 'ENG');
+      llmCall('ENGINEER', 'revise HTML — addressing review issues');
+      await wait(900);
+      log('Engineer: revised HTML committed to branch.', 'ok', 'ENG');
+      addMsg('engineer', 'ceo', 'result', genId());
+    }
+  }
+
+  const r2 = genId();
+  addMsg('engineer', 'ceo', 'result', r2);
+  setAgent('engineer', 'done', 'done');
+  log('Engineer Agent task complete.', 'ok', 'ENG');
+  await wait(200);
+
+  // --- MARKETING ---
+  const t3 = genId();
+  addMsg('ceo', 'marketing', 'task', t3);
+  setAgent('marketing', 'running', 'running');
+  log('Marketing Agent received spec + PR URL. Generating copy...', 'sys', 'MKT');
+  await wait(400);
+  llmCall('MARKETING', 'generate tagline, email subject+body, twitter, linkedin, instagram copy');
+  await wait(1000);
+  log('Marketing: copy generated. Dispatching email via SendGrid...', 'sys', 'MKT');
+  await wait(500);
+  log('Marketing: email sent — status 202 Accepted.', 'ok', 'MKT');
+  await wait(300);
+  log('Marketing: posting Block Kit message to Slack #launches...', 'sys', 'MKT');
+  await wait(400);
+  log('Marketing: Slack message posted — ok: true.', 'ok', 'MKT');
+
+  if (hitlOn) {
+    const dec = await showApproval('Marketing Agent',
+`tagline: "Trade Textbooks. Save More. Study Better."
+description: "A peer-to-peer textbook marketplace for university students..."
+
+email_subject: "Stop Overpaying for Textbooks This Semester"
+email_body: HTML — 3 paragraphs, CTA: "Join the Waitlist"
+email_status: 202 Accepted (SendGrid)
+
+twitter_post: "Stop overpaying for textbooks! AI-powered pricing on campus. #StudentLife #SaveMoney" (187 chars)
+linkedin_post: "Excited to launch BookSwap — connecting university students..."
+instagram_post: "Trade smarter, study harder. AI prices. Campus delivery. #UniLife"
+
+slack_posted: true (Block Kit, #launches)`);
+    if (dec === 'reject') {
+      loops++;
+      addMsg('ceo', 'marketing', 'revision_request', genId());
+      setAgent('marketing', 'running', 'running');
+      log('Marketing Agent processing revision...', 'warn', 'MKT');
+      llmCall('MARKETING', 'revise copy based on CEO feedback');
+      await wait(800);
+      log('Marketing: copy revised, email re-sent.', 'ok', 'MKT');
+      addMsg('marketing', 'ceo', 'result', genId());
+    }
+  }
+
+  const r3 = genId();
+  addMsg('marketing', 'ceo', 'result', r3);
+  addMsg('marketing', 'ceo', 'confirmation', genId());
+  setAgent('marketing', 'done', 'done');
+  log('Marketing Agent task complete.', 'ok', 'MKT');
+  await wait(200);
+
+  // --- QA ---
+  const t4 = genId();
+  addMsg('ceo', 'qa', 'task', t4);
+  setAgent('qa', 'running', 'running');
+  log('QA Agent received HTML + marketing copy. Starting review...', 'sys', 'QA');
+  await wait(400);
+  llmCall('QA', 'review HTML — headline alignment, feature coverage, CTA presence, structure quality');
+  await wait(800);
+  llmCall('QA', 'review marketing copy — tagline length, email CTA, twitter char count');
+  await wait(700);
+  log('QA: posting inline review comments on GitHub PR...', 'sys', 'QA');
+  await wait(400);
+  log('QA: 2 inline comments posted on index.html (positions 10, 25).', 'ok', 'QA');
+  log('QA verdict — HTML: PASS (8/10) | Marketing: PASS | Overall: PASS', 'ok', 'QA');
+
+  if (hitlOn) {
+    await showApproval('QA Agent',
+`html_review:
+  verdict: PASS
+  overall_score: 8/10
+  inline_comment_1: "Hero section headline aligns well with value proposition."
+  inline_comment_2: "All 5 features present. CTA button visible above the fold."
+  issues: []
+
+marketing_review:
+  verdict: PASS
+  tagline_feedback: "Under 10 words, punchy and memorable."
+  email_feedback: "Clear call-to-action present. Tone is appropriate for students."
+  issues: []
+
+overall_verdict: PASS
+pr_comments_posted: true`);
+  }
+
+  const r4 = genId();
+  addMsg('qa', 'ceo', 'result', r4);
+  setAgent('qa', 'done', 'done');
+  log('QA Agent task complete.', 'ok', 'QA');
+  await wait(300);
+
+  // --- CEO FINAL ---
+  log('CEO: all agent results received. Compiling final summary...', 'sys', 'CEO');
+  await wait(400);
+  log('CEO: posting final summary to Slack #launches...', 'sys', 'CEO');
+  await wait(300);
+  log('CEO: final summary posted — ok: true.', 'ok', 'CEO');
+  setAgent('ceo', 'done', 'done');
+
+  await wait(200);
+  log(`Pipeline complete — ${msgs} messages exchanged, ${llmCalls} LLM calls, ${loops} revision loops.`, 'ok', 'SYS');
+  setSys('PIPELINE COMPLETE', true);
+  running = false;
+  document.getElementById('runBtn').disabled = false;
+}
+</script>
+</body>
+</html>
