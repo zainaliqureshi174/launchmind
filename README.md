@@ -13,7 +13,7 @@ A mobile platform where university students can buy and sell second-hand textboo
 ## 🏗️ Agent Architecture
 
 ```
-You → main.py → CEO Agent
+You → app.py → CEO Agent
                     │
                     ├──[task]──→ Product Agent
                     │               │
@@ -161,7 +161,7 @@ launchmind/
 
 | Variable | Description |
 |----------|-------------|
-| `GROQ_API_KEY` | Groq API key — free at console.groq.com |
+| `GROQ_API_KEY` | Groq API key - free at console.groq.com |
 | `GITHUB_TOKEN` | GitHub Personal Access Token (repo + workflow scopes) |
 | `GITHUB_REPO` | Your repo in `username/repo-name` format |
 | `SLACK_BOT_TOKEN` | Slack Bot Token (starts with `xoxb-`) |
